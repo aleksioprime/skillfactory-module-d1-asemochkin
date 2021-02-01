@@ -19,21 +19,29 @@ def read():
             print('\t' + 'Нет задач!')
             continue
         for num, task in enumerate(task_data):
-            print(('\t{}. {}').format(num + 1, task['name']))
+            print(('\t{}. {} | id: {}').format(num + 1, task['name'], task['id']))
 
 def create_card(name, column_name):
     """ Функция создания задачи с указанным именем в указанном списке """
     column_data = requests.get(base_url.format('boards') + '/' + \
         board_id + '/lists', params = auth_params).json()
+    # Поиск существования списка задач с заданным именем и получение его id
+    column_id = None
     for column in column_data:
         if column['name'] == column_name:
-            requests.post(base_url.format('cards'), data={'name': name, 'idList': column['id'], **auth_params})
+            column_id = column['id']
             break
+    # Если списка задач не найдено, то создаётся новый список и берётся его id
+    if column_id is None:
+        column_id = create_list(column_name)['id']
+    # Создаётся задача в текущем или новом списке
+    requests.post(base_url.format('cards'), data={'name': name, 'idList': column_id, **auth_params})
 
 def create_list(name):
     """ Функция создания списка с указанным именем """
-    requests.post(base_url.format('boards') + '/' + \
-        board_id + '/lists', data={'name': name, **auth_params})
+    return requests.post(base_url.format('boards') + '/' + \
+        board_id + '/lists', data={'name': name, **auth_params}).json()
+    
 
 def move(name, column_name):
     """ Функция перемещения задачи в другой список """
@@ -65,7 +73,7 @@ def move(name, column_name):
         if len(tasks) > 1:
             # если в списке задач добавлено больше одной задачи, то выводим на экран список найденных задач со всеми данными
             print("Таких задач несколько:\n", "\n".join(
-                ["{}. {} (время: {}, описание: {}) - {}".format(i+1, name, x['date'], x['desc'],  x['column_name'].upper()) 
+                ["{}. {} (id: {}, описание: {}) - {}".format(i+1, name, x['id'], x['desc'],  x['column_name'].upper()) 
                 for i, x in enumerate(tasks)]),sep="")
             # пользователь вводит номер задачи и система фиксирует её id для дальнейшей работы (перемещения)
             task_id = tasks[int(input("Введите номер задачи: "))-1]['id']
